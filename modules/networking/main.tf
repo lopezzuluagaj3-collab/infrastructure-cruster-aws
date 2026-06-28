@@ -1,8 +1,3 @@
-# ====================================================
-# MÓDULO: networking
-# Responsable de: VPC, Subnets, IGW, NAT, Route Tables
-# ====================================================
-
 resource "aws_vpc" "vpc_principal" {
   cidr_block           = var.cidr_vpc
   enable_dns_hostnames = true

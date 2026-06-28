@@ -13,9 +13,24 @@ output "rabbitmq_private_ip" {
   value       = module.compute.rabbitmq_private_ip
 }
 
+output "db_private_ip" {
+  description = "IP privada de la base de datos"
+  value       = module.compute.db_private_ip
+}
+
 output "all_workers_private_ips" {
   description = "Mapa de nombre de worker a IP privada"
   value       = module.compute.workers_private_ips
+}
+
+output "all_instances_ids" {
+  description = "Mapa de nombre a ID de instancia"
+  value       = module.compute.all_instances_ids
+}
+
+output "all_instances_public_ips" {
+  description = "Mapa de nombre a IP pública (solo proxy tendrá IP pública)"
+  value       = module.compute.all_instances_public_ips
 }
 
 output "vpc_id" {
@@ -33,20 +48,6 @@ output "sg_proxy_id" {
   value       = module.security_groups.sg_proxy_id
 }
 
-output "bucket_name" {
-  description = "Nombre del bucket S3"
-  value       = module.iam_s3.bucket_name
-}
-
-output "bucket_arn" {
-  description = "ARN del bucket S3"
-  value       = module.iam_s3.bucket_arn
-}
-
-output "iam_user_arn" {
-  description = "ARN del usuario IAM para logs de Airflow"
-  value       = module.iam_s3.airflow_logs_user_arn
-}
 
 
 

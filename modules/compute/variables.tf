@@ -3,6 +3,12 @@ variable "ami" {
   type        = string
 }
 
+variable "proxy_eip_allocation_id" {
+  description = "Allocation ID de la Elastic IP existente para el proxy (ej: eipalloc-xxxxxxxx). Si se deja vacío, Terraform crea una nueva."
+  type        = string
+  default     = ""
+}
+
 variable "subnet_publica_id" {
   description = "ID de la subnet pública (para el proxy)"
   type        = string
@@ -18,18 +24,23 @@ variable "sg_proxy_id" {
   type        = string
 }
 
-variable "sg_airflow_id" {
-  description = "ID del security group de Airflow"
+variable "sg_ia_id" {
+  description = "ID del security group de Airflow (IA)"
   type        = string
 }
 
-variable "sg_worker_airflow_id" {
-  description = "ID del security group de workers de Airflow"
+variable "sg_front_id" {
+  description = "ID del security group de workers de Airflow (front)"
   type        = string
 }
 
-variable "sg_rabbitmq_id" {
-  description = "ID del security group de RabbitMQ"
+variable "sg_back_id" {
+  description = "ID del security group de RabbitMQ (back)"
+  type        = string
+}
+
+variable "sg_db_id" {
+  description = "ID del security group de DB"
   type        = string
 }
 
@@ -43,11 +54,6 @@ variable "key_general" {
   description = "Key pair para los servidores privados"
   type        = string
   sensitive   = true
-}
-
-variable "instance_profile_name" {
-  description = "Nombre del instance profile para los workers"
-  type        = string
 }
 
 variable "environment" {

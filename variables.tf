@@ -11,7 +11,7 @@ variable "owner" {
 }
 
 variable "environment" {
-  description = "Ambiente (dev, staging, prod)"
+  description = "prod"
   type        = string
   default     = "dev"
 
@@ -24,7 +24,7 @@ variable "environment" {
 variable "allowed_ssh_cidr" {
   description = "CIDR desde el cual se permite conexión SSH al proxy"
   type        = string
-  default     = "0.0.0.0/0" # Para práctica; en producción usar tu IP pública
+  default     = "0.0.0.0/0"
 
   validation {
     condition     = can(cidrhost(var.allowed_ssh_cidr, 0))
@@ -42,4 +42,10 @@ variable "KEY_GENERAL" {
   description = "Nombre del key pair para los servidores privados"
   type        = string
   sensitive   = true
+}
+
+variable "proxy_eip_allocation_id" {
+  description = "Allocation ID de la Elastic IP existente para el proxy. Si se deja vacío, Terraform crea una nueva EIP."
+  type        = string
+  default     = ""
 }

@@ -3,19 +3,25 @@ output "sg_proxy_id" {
   value       = aws_security_group.sg_proxy.id
 }
 
-output "sg_airflow_id" {
-  description = "ID del security group de Airflow master"
-  value       = aws_security_group.sg_airflow.id
+output "sg_ia_id" {
+  description = "ID del security group de Airflow (IA)"
+  value       = aws_security_group.sg_ia.id
 }
 
-output "sg_worker_airflow_id" {
-  description = "ID del security group de workers de Airflow"
-  value       = aws_security_group.sg_worker_airflow.id
+output "sg_front_id" {
+  description = "ID del security group de workers (front)"
+  value       = aws_security_group.sg_front.id
 }
 
-output "sg_rabbitmq_id" {
-  description = "ID del security group de RabbitMQ"
-  value       = aws_security_group.sg_rabbitmq.id
+output "sg_back_id" {
+  description = "ID del security group de RabbitMQ (back)"
+  value       = aws_security_group.sg_back.id
 }
+
+output "sg_db_id" {
+  description = "ID del security group de DB"
+  value       = aws_security_group.sg_db.id
+}
+
 
 

@@ -14,34 +14,50 @@ variable "subnet_privada_id" {
 }
 
 variable "sg_proxy_id" {
-  type = string
+  description = "ID del security group del proxy"
+  type        = string
 }
 
 variable "sg_airflow_id" {
-  type = string
+  description = "ID del security group de Airflow"
+  type        = string
 }
 
 variable "sg_worker_airflow_id" {
-  type = string
+  description = "ID del security group de workers de Airflow"
+  type        = string
 }
 
 variable "sg_rabbitmq_id" {
-  type = string
+  description = "ID del security group de RabbitMQ"
+  type        = string
 }
-
 
 variable "key_proxy" {
   description = "Key pair para el servidor proxy"
   type        = string
+  sensitive   = true
 }
 
 variable "key_general" {
   description = "Key pair para los servidores privados"
   type        = string
+  sensitive   = true
 }
 
-
 variable "instance_profile_name" {
-  description = "ARN del instance profile para los workers"
+  description = "Nombre del instance profile para los workers"
   type        = string
+}
+
+variable "environment" {
+  description = "Ambiente de despliegue"
+  type        = string
+  default     = "dev"
+}
+
+variable "owner" {
+  description = "Responsable del proyecto"
+  type        = string
+  default     = "estudiante"
 }

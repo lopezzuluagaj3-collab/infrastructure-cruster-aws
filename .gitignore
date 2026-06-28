@@ -38,3 +38,20 @@ override.tf.json
 terraform.rc
 
 # End of https://www.toptal.com/developers/gitignore/api/terraform
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Credenciales locales
+*.pem
+*.p12
+*.pfx
+
+# Scripts locales (si usas archivos .tfvars locales)
+*.local.tfvars
+*.override.tfvars

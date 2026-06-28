@@ -1,8 +1,10 @@
 # Proyecto Terraform VPC en AWS
 
-Este proyecto usa Terraform para crear una infraestructura base en AWS dentro de la region `us-east-1`.
+Este proyecto usa Terraform para crear una infraestructura base en AWS dentro de la región `us-east-1`.
 
-La infraestructura incluye una VPC, una subred publica, una subred privada, un Internet Gateway, un NAT Gateway, tablas de enrutamiento, grupos de seguridad y varias instancias EC2 para servicios como proxy, RabbitMQ, Airflow y Spark.
+La infraestructura incluye una VPC, una subred pública, una subred privada, un Internet Gateway, un NAT Gateway, tablas de enrutamiento, grupos de seguridad y varias instancias EC2: un servidor proxy (punto de entrada SSH), un broker RabbitMQ, un nodo maestro de Airflow y tres workers de Airflow. También crea un bucket S3 para logs y datos, junto con usuarios y roles IAM para acceso controlado a ese bucket.
+
+> **Nota:** Para ver el detalle completo de los cambios aplicados, buenas prácticas y roadmap de mejora, leé el archivo [`MEJORAS_Y_BUENAS_PRACTICAS.md`](./MEJORAS_Y_BUENAS_PRACTICAS.md).
 
 ## Para que sirve Terraform
 
@@ -314,24 +316,24 @@ El archivo `main.tf` crea principalmente:
 - Security group para Airflow.
 - Security group para workers de Airflow.
 - Security group para RabbitMQ.
-- Security group para Spark master.
-- Security group para Spark workers.
 - Instancia EC2 proxy `t3.micro`.
 - Instancia EC2 RabbitMQ `t3.small`.
 - Instancia EC2 Airflow master `t3.small`.
-- Instancia EC2 Spark master `t3.small`.
-- Tres instancias EC2 Spark workers `t3.small`.
-- Instancia EC2 Airflow worker `t3.small`.
+- Tres instancias EC2 Airflow workers `t3.small`.
+- Bucket S3 para logs y datos de Airflow.
+- Usuario IAM para escritura de logs.
+- Rol IAM e instance profile para los workers.
 
 ## Notas importantes
 
 - El NAT Gateway genera costo mientras exista.
-- Las instancias EC2 generan costo mientras esten encendidas.
-- Los volumenes EBS tambien pueden generar costo.
-- Si el `apply` falla a mitad de camino, revisa el estado con `terraform plan`.
+- Las instancias EC2 generan costo mientras estén encendidas.
+- Los volúmenes EBS también pueden generar costo.
+- Si el `apply` falla a mitad de camino, revisá el estado con `terraform plan`.
 - Si un recurso queda marcado como `tainted`, Terraform puede proponer destruirlo y crearlo de nuevo.
-- Los security groups del proxy abren puertos como SSH, HTTP y HTTPS hacia `0.0.0.0/0`; para produccion conviene limitar SSH a tu IP publica.
-- El CIDR configurado actualmente usa `24.0.0.0/16`. Para proyectos reales normalmente se usan rangos privados como `10.0.0.0/16`, `172.16.0.0/16` o `192.168.0.0/16`.
+- Los security groups del proxy abren puertos como SSH, HTTP y HTTPS hacia internet; para producción conviene limitar SSH a tu IP pública. Ahora podés controlar esto con la variable `allowed_ssh_cidr`.
+- El CIDR de la VPC ahora usa `10.0.0.0/16`, que es el rango privado recomendado por AWS.
+- No borrés `terraform.tfstate` antes de hacer `destroy`. Ese archivo le dice a Terraform qué recursos creó y que debe eliminar.
 
 ## Comandos utiles
 

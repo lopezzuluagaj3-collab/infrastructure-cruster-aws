@@ -10,7 +10,7 @@ resource "aws_vpc" "vpc_principal" {
   )
 
   lifecycle {
-    prevent_destroy = true
+    # prevent_destroy = true  # Comentado temporalmente para permitir recreación de SGs
   }
 }
 

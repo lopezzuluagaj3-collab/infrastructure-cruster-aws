@@ -1,5 +1,3 @@
-
-
 resource "aws_instance" "svr_proxy" {
   ami                    = var.ami
   instance_type          = "t3.small"
@@ -10,7 +8,7 @@ resource "aws_instance" "svr_proxy" {
   root_block_device {
     volume_size           = 32
     volume_type           = "gp3"
-    encrypted             = true
+    encrypted             = false
     delete_on_termination = true
   }
 
@@ -41,9 +39,9 @@ resource "aws_eip_association" "proxy_eip_assoc" {
   allocation_id = var.proxy_eip_allocation_id
 }
 
-resource "aws_instance" "svr_rabbitmq" {
+resource "aws_instance" "svr_back" {
   ami                    = var.ami
-  instance_type          = "t3.medium"
+  instance_type          = "c7i-flex.large"
   subnet_id              = var.subnet_privada_id
   vpc_security_group_ids = [var.sg_back_id]
   key_name               = var.key_general
@@ -51,21 +49,21 @@ resource "aws_instance" "svr_rabbitmq" {
   root_block_device {
     volume_size           = 32
     volume_type           = "gp3"
-    encrypted             = true
+    encrypted             = false
     delete_on_termination = true
   }
 
   tags = merge(
     local.common_tags,
     {
-      Name = "${local.name_prefix}-svr-rabbitmq"
+      Name = "${local.name_prefix}-svr-back"
     }
   )
 }
 
-resource "aws_instance" "svr_airflow" {
+resource "aws_instance" "svr_ia" {
   ami                    = var.ami
-  instance_type          = "t3.large"
+  instance_type          = "m7i-flex.large"
   subnet_id              = var.subnet_privada_id
   vpc_security_group_ids = [var.sg_ia_id]
   key_name               = var.key_general
@@ -73,26 +71,21 @@ resource "aws_instance" "svr_airflow" {
   root_block_device {
     volume_size           = 64
     volume_type           = "gp3"
-    encrypted             = true
+    encrypted             = false
     delete_on_termination = true
   }
 
   tags = merge(
     local.common_tags,
     {
-      Name = "${local.name_prefix}-svr-airflow-master"
+      Name = "${local.name_prefix}-svr-ia"
     }
   )
 }
 
-resource "aws_instance" "svr_airflow_workers" {
-  for_each = {
-    "worker-1" = "svr-airflow-worker-1"
-    "worker-2" = "svr-airflow-worker-2"
-    "worker-3" = "svr-airflow-worker-3"
-  }
+resource "aws_instance" "svr_front" {
   ami                    = var.ami
-  instance_type          = "t3.medium"
+  instance_type          = "c7i-flex.large"
   subnet_id              = var.subnet_privada_id
   vpc_security_group_ids = [var.sg_front_id]
   key_name               = var.key_general
@@ -100,21 +93,21 @@ resource "aws_instance" "svr_airflow_workers" {
   root_block_device {
     volume_size           = 32
     volume_type           = "gp3"
-    encrypted             = true
+    encrypted             = false
     delete_on_termination = true
   }
 
   tags = merge(
     local.common_tags,
     {
-      Name = "${local.name_prefix}-${each.value}"
+      Name = "${local.name_prefix}-svr-front"
     }
   )
 }
 
 resource "aws_instance" "svr_db" {
   ami                    = var.ami
-  instance_type          = "t3.small"
+  instance_type          = "t3.micro"
   subnet_id              = var.subnet_privada_id
   vpc_security_group_ids = [var.sg_db_id]
   key_name               = var.key_general
@@ -122,7 +115,7 @@ resource "aws_instance" "svr_db" {
   root_block_device {
     volume_size           = 64
     volume_type           = "gp3"
-    encrypted             = true
+    encrypted             = false
     delete_on_termination = true
   }
 
@@ -133,4 +126,3 @@ resource "aws_instance" "svr_db" {
     }
   )
 }
-

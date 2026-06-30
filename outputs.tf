@@ -1,36 +1,26 @@
 output "proxy_public_ip" {
   description = "IP pública del servidor proxy (punto de entrada SSH)"
-  value       = module.compute.proxy_public_ip
+  value       = "34.202.187.239" # IP actual del proxy en AWS
 }
 
-output "airflow_private_ip" {
-  description = "IP privada del servidor Airflow master"
-  value       = module.compute.airflow_private_ip
+output "ia_private_ip" {
+  description = "IP privada del servidor IA (Airflow)"
+  value       = "10.0.2.243" # IP actual en AWS
 }
 
-output "rabbitmq_private_ip" {
-  description = "IP privada de RabbitMQ"
-  value       = module.compute.rabbitmq_private_ip
+output "back_private_ip" {
+  description = "IP privada del servidor Back (RabbitMQ)"
+  value       = "10.0.2.209" # IP actual en AWS
 }
 
 output "db_private_ip" {
   description = "IP privada de la base de datos"
-  value       = module.compute.db_private_ip
+  value       = "10.0.2.91" # IP actual en AWS
 }
 
-output "all_workers_private_ips" {
-  description = "Mapa de nombre de worker a IP privada"
-  value       = module.compute.workers_private_ips
-}
-
-output "all_instances_ids" {
-  description = "Mapa de nombre a ID de instancia"
-  value       = module.compute.all_instances_ids
-}
-
-output "all_instances_public_ips" {
-  description = "Mapa de nombre a IP pública (solo proxy tendrá IP pública)"
-  value       = module.compute.all_instances_public_ips
+output "front_private_ip" {
+  description = "IP privada del servidor Front"
+  value       = "10.0.2.212" # IP actual en AWS
 }
 
 output "vpc_id" {
@@ -47,7 +37,3 @@ output "sg_proxy_id" {
   description = "ID del security group del proxy"
   value       = module.security_groups.sg_proxy_id
 }
-
-
-
-

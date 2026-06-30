@@ -1,388 +1,181 @@
-# Proyecto Terraform VPC en AWS
+# Infrastructure Cluster AWS — MVP Deployment
 
-Este proyecto usa Terraform para crear una infraestructura base en AWS dentro de la región `us-east-1`.
+Infrastructure as Code (IaC) project provisioning a complete AWS environment for an MVP application, including a public-facing reverse proxy, a backend service, a local AI inference server, a frontend, and a PostgreSQL database. The infrastructure is fully managed with Terraform across isolated public and private subnets.
 
-La infraestructura incluye una VPC, una subred pública, una subred privada, un Internet Gateway, un NAT Gateway, tablas de enrutamiento, grupos de seguridad y varias instancias EC2: un servidor proxy (punto de entrada SSH), un broker RabbitMQ, un nodo maestro de Airflow y tres workers de Airflow. También crea un bucket S3 para logs y datos, junto con usuarios y roles IAM para acceso controlado a ese bucket.
+## Overview
 
-> **Nota:** Para ver el detalle completo de los cambios aplicados, buenas prácticas y roadmap de mejora, leé el archivo [`MEJORAS_Y_BUENAS_PRACTICAS.md`](./MEJORAS_Y_BUENAS_PRACTICAS.md).
+This project was built to deploy a Minimum Viable Product (MVP) requested by a client, consisting of four core components running on dedicated EC2 instances within a custom VPC:
 
-## Para que sirve Terraform
+- **Reverse Proxy** — public-facing entry point handling HTTP/HTTPS traffic and routing to internal services
+- **Backend** — application server exposing the API consumed by the frontend and the apk client
+- **AI Server** — local inference service running machine learning workloads
+- **Database** — PostgreSQL instance for persistent application data
 
-Terraform permite definir infraestructura como codigo. En vez de crear recursos manualmente desde la consola de AWS, se escriben en archivos `.tf` y Terraform se encarga de crear, modificar o destruir esos recursos de forma controlada.
+All compute resources, networking, and security groups are defined as code and version-controlled, enabling reproducible deployments and auditable infrastructure changes.
 
-Comandos principales:
+## Architecture
 
-```powershell
-terraform init
-terraform validate
-terraform plan
-terraform apply
-terraform destroy
+```
+                              Internet
+                                  |
+                          [ Internet Gateway ]
+                                  |
+                    ┌─────────────────────────┐
+                    │   Public Subnet          │
+                    │   10.0.1.0/24            │
+                    │                          │
+                    │   ┌──────────────────┐   │
+                    │   │  Proxy (EC2)     │   │
+                    │   │  Elastic IP      │   │
+                    │   └────────┬─────────┘   │
+                    └────────────┼─────────────┘
+                                 |
+                    ┌────────────┼─────────────┐
+                    │   Private Subnet          │
+                    │   10.0.2.0/24             │
+                    │                           │
+                    │  ┌──────────┐ ┌─────────┐ │
+                    │  │ Backend  │ │Frontend │ │
+                    │  └────┬─────┘ └─────────┘ │
+                    │       │                    │
+                    │  ┌────┴─────┐ ┌──────────┐ │
+                    │  │ AI Server│ │ Database │ │
+                    │  └──────────┘ └──────────┘ │
+                    └───────────────────────────┘
+                                 |
+                          [ NAT Gateway ]
+                                 |
+                              Internet
+                       (outbound only, private subnet)
 ```
 
-## Requisitos previos
+The public subnet hosts only the reverse proxy, which is the sole entry point reachable from the internet. All other services live in the private subnet and are reachable exclusively through security group references, never via public IP. Outbound internet access for the private subnet (package installs, updates) is routed through a NAT Gateway.
 
-Antes de ejecutar este proyecto necesitas:
+## Infrastructure Components
 
-- Una cuenta de AWS.
-- Un usuario IAM para Terraform.
-- AWS CLI instalado.
-- Terraform instalado.
-- Key pairs creados en EC2 para conectarse por SSH a las instancias.
-- Credenciales AWS configuradas en tu maquina.
+| Resource | Description |
+|---|---|
+| VPC | Custom VPC, CIDR `10.0.0.0/16` |
+| Public Subnet | `10.0.1.0/24` — hosts the proxy |
+| Private Subnet | `10.0.2.0/24` — hosts backend, frontend, AI server, database |
+| Internet Gateway | Provides public subnet internet access |
+| NAT Gateway | Provides outbound-only internet access for the private subnet |
+| Elastic IP | Static public IP attached to the proxy instance, bound to existing DNS records |
+| 5x EC2 Instances | Proxy, Backend, Frontend, AI Server, Database |
+| 5x Security Groups | One per service, least-privilege ingress rules |
 
-## 1. Crear usuario IAM en AWS
+## Security Groups
 
-En AWS IAM crea un usuario, por ejemplo:
+Access between services is controlled exclusively through security group references (not CIDR blocks), ensuring that only the intended services can communicate with each other.
 
-```text
-terraform-user
+| Security Group | Purpose | Key Ingress Rules |
+|---|---|---|
+| `sg-proxy` | Public entry point | HTTP (80), HTTPS (443), Proxy UI (81), SSH from admin IP |
+| `sg-front` | Frontend service | Port 8080 from proxy, SSH from proxy |
+| `sg-back` | Backend / message broker | Port 5000 from proxy (web and apk clients), SSH from proxy |
+| `sg-ia` | AI inference server | Port 8080 from proxy, SSH from proxy |
+| `sg-db` | PostgreSQL database | Port 5432 from backend and AI server, SSH from proxy |
+
+## Prerequisites
+
+- [Terraform](https://www.terraform.io/downloads) >= 1.5
+- AWS CLI configured with valid credentials (`aws configure`)
+- An existing AWS key pair for SSH access to the instances
+- Appropriate IAM permissions to manage EC2, VPC, and related networking resources
+
+## Project Structure
+
+```
+infrastructure-cruster-aws/
+├── main.tf                    # Root module: providers, data sources, module composition
+├── variables.tf                # Input variable declarations
+├── outputs.tf                  # Output values (IPs, IDs)
+├── terraform.tfvars             # Environment-specific values (not committed)
+└── modules/
+    ├── networking/              # VPC, subnets, route tables, gateways
+    ├── security_groups/         # Security group definitions
+    └── compute/                 # EC2 instances, Elastic IP association
 ```
 
-Ese usuario necesita permisos para administrar recursos EC2, VPC, subnets, security groups, route tables, Internet Gateway, NAT Gateway, Elastic IP e instancias.
+## Getting Started
 
-Para un laboratorio o practica se puede usar la politica administrada:
+### 1. Clone the repository
 
-```text
-AmazonEC2FullAccess
+```bash
+git clone <repository-url>
+cd infrastructure-cruster-aws
 ```
 
-Para entornos reales conviene usar una politica mas limitada, con solo los permisos necesarios.
+### 2. Configure variables
 
-Despues crea una access key para ese usuario:
-
-```text
-Access key ID
-Secret access key
-```
-
-Guarda esos valores porque se usan para configurar AWS CLI.
-
-## 2. Instalar AWS CLI
-
-Descarga AWS CLI desde la documentacion oficial de AWS:
-
-```text
-https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-```
-
-Despues verifica la instalacion:
-
-```powershell
-aws --version
-```
-
-Debe mostrar algo parecido a:
-
-```text
-aws-cli/2.x.x Python/x.x.x Windows/11 exe/AMD64
-```
-
-## 3. Configurar credenciales AWS
-
-Ejecuta:
-
-```powershell
-aws configure
-```
-
-Ingresa los datos del usuario IAM:
-
-```text
-AWS Access Key ID
-AWS Secret Access Key
-Default region name: us-east-1
-Default output format: json
-```
-
-Verifica que las credenciales funcionen:
-
-```powershell
-aws sts get-caller-identity
-```
-
-Si responde con el usuario y la cuenta de AWS, la configuracion esta correcta.
-
-## 4. Instalar Terraform en Windows
-
-Descarga Terraform desde HashiCorp:
-
-```text
-https://developer.hashicorp.com/terraform/install
-```
-
-Selecciona:
-
-```text
-Windows AMD64
-```
-
-Descomprime el `.zip` y copia `terraform.exe` en:
-
-```text
-C:\terraform\terraform.exe
-```
-
-Agrega `C:\terraform` al `PATH` del usuario:
-
-```powershell
-[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";C:\terraform", "User")
-```
-
-Cierra PowerShell, abre uno nuevo y verifica:
-
-```powershell
-terraform version
-```
-
-Si no funciona por `PATH`, puedes probar directo:
-
-```powershell
-C:\terraform\terraform.exe version
-```
-
-## 5. Crear key pairs en EC2
-
-Este proyecto usa dos variables:
+Create a `terraform.tfvars` file in the project root with your environment-specific values:
 
 ```hcl
-KEY_PROXY
-KEY_GENERAL
+aws_region       = "us-east-1"
+environment      = "dev"
+owner            = "your-team-name"
+allowed_ssh_cidr = "your.admin.ip/32"
+
+KEY_PROXY   = "your-proxy-key-pair-name"
+KEY_GENERAL = "your-general-key-pair-name"
 ```
 
-Estas variables representan el nombre de los key pairs creados en AWS EC2.
+> **Note:** `terraform.tfvars` is excluded from version control via `.gitignore`, as it may contain environment-specific or sensitive values.
 
-Importante: `key_name` no recibe la ruta del archivo `.pem`. Recibe el nombre exacto del key pair en AWS.
+### 3. Initialize Terraform
 
-Ejemplo correcto:
-
-```hcl
-KEY_PROXY   = "KEY_PROXY"
-KEY_GENERAL = "KEY_GENERAL"
-```
-
-Ejemplo incorrecto:
-
-```hcl
-KEY_GENERAL = "C:\Users\usuario\Downloads\llave.pem"
-```
-
-Puedes listar los key pairs existentes con:
-
-```powershell
-aws ec2 describe-key-pairs --query "KeyPairs[*].KeyName" --output table
-```
-
-## 6. Variables del proyecto
-
-El archivo `variables.tf` declara las variables:
-
-```hcl
-variable "KEY_PROXY" {
-  description = "Nombre del key pair de AWS para la instancia proxy."
-  type        = string
-}
-
-variable "KEY_GENERAL" {
-  description = "Nombre del key pair de AWS para las instancias internas."
-  type        = string
-}
-```
-
-El archivo `terraform.tfvars` define los valores:
-
-```hcl
-KEY_PROXY   = "KEY_PROXY"
-KEY_GENERAL = "KEY_GENERAL"
-```
-
-Terraform lee automaticamente `terraform.tfvars` al ejecutar `plan` o `apply`.
-
-## 7. Inicializar Terraform
-
-Desde la carpeta del proyecto:
-
-```powershell
-cd C:\Users\lopez\OneDrive\Desktop\terraform\proyecto-vpc
+```bash
 terraform init
 ```
 
-Este comando descarga el provider de AWS y crea la carpeta `.terraform`.
+### 4. Review the execution plan
 
-Tambien genera o actualiza:
-
-```text
-.terraform.lock.hcl
-```
-
-Ese archivo fija la version del provider usada por el proyecto.
-
-## 8. Validar configuracion
-
-Ejecuta:
-
-```powershell
-terraform validate
-```
-
-Si todo esta bien, debe mostrar:
-
-```text
-Success! The configuration is valid.
-```
-
-Esto solo valida que Terraform entiende el codigo. No crea recursos todavia.
-
-## 9. Revisar el plan
-
-Ejecuta:
-
-```powershell
+```bash
 terraform plan
 ```
 
-Terraform mostrara que recursos va a crear, modificar o destruir.
+Always review the plan output before applying. Pay particular attention to any action marked `-/+` (destroy and recreate) on EC2 instances or security groups — these actions can cause downtime and should never be applied to running production infrastructure without explicit review.
 
-Para guardar el plan:
+### 5. Apply the configuration
 
-```powershell
-terraform plan -out=tfplan
-```
-
-Luego puedes aplicar exactamente ese plan:
-
-```powershell
-terraform apply tfplan
-```
-
-## 10. Crear infraestructura
-
-Para crear los recursos:
-
-```powershell
+```bash
 terraform apply
 ```
 
-Terraform mostrara el plan y pedira confirmacion:
+Confirm with `yes` once the plan matches your expectations.
 
-```text
-yes
-```
+## State Management
 
-Durante la creacion, el NAT Gateway puede tardar varios minutos. Mensajes como este son normales:
+> **Current setup:** this project uses **local Terraform state** (`terraform.tfstate`). Remote backend (S3 + DynamoDB) has not yet been implemented.
 
-```text
-aws_nat_gateway.nat_gw: Still creating...
-```
+This is an accepted limitation for the current MVP stage, with the following operational implications:
 
-## 11. Borrar toda la infraestructura
+- The `terraform.tfstate` file is the single source of truth linking this codebase to the real AWS resources. It must **not** be deleted, and it is intentionally excluded from version control via `.gitignore` for security reasons (it may contain sensitive attribute values in plaintext).
+- Running `terraform init`, `plan`, and `apply` from a fresh clone of this repository **without the existing state file present** will cause Terraform to attempt to recreate all infrastructure from scratch, resulting in duplicate or conflicting resources.
+- Until a remote backend is implemented, infrastructure changes must be applied from the machine holding the current `terraform.tfstate` file, or that file must be securely transferred before running Terraform commands elsewhere.
+- **Planned improvement:** migrating to an S3 backend with DynamoDB state locking is the recommended next step to enable safe multi-operator collaboration and prevent state file loss.
 
-Como este proyecto fue teorico o de practica, lo mas importante al terminar es destruir los recursos para evitar costos.
+## Operational Notes
 
-Ejecuta:
+- Instance types, AMIs, and storage configurations are pinned in code to match the currently running infrastructure. Any manual change made directly in the AWS Console must be reflected back into the corresponding `.tf` file as soon as possible to prevent configuration drift.
+- Root volumes are provisioned as `gp3` with `delete_on_termination = true`.
+- The reverse proxy holds a static Elastic IP with existing DNS records pointing to it; this IP must never be deallocated or reassigned without prior DNS migration.
 
-```powershell
-terraform destroy
-```
+## Outputs
 
-Confirma con:
+After a successful `apply`, Terraform exposes the following outputs:
 
-```text
-yes
-```
+| Output | Description |
+|---|---|
+| `proxy_public_ip` | Public IP of the reverse proxy |
+| `back_private_ip` | Private IP of the backend instance |
+| `front_private_ip` | Private IP of the frontend instance |
+| `ia_private_ip` | Private IP of the AI server instance |
+| `db_private_ip` | Private IP of the database instance |
+| `vpc_id` | ID of the provisioned VPC |
+| `vpc_cidr` | CIDR block of the VPC |
+| `sg_proxy_id` | Security group ID for the proxy |
 
-Tambien puedes crear un plan de destruccion:
+## License
 
-```powershell
-terraform plan -destroy -out=destroy.tfplan
-terraform apply destroy.tfplan
-```
-
-No borres `terraform.tfstate` antes de hacer `destroy`. Ese archivo le dice a Terraform que recursos creo y que debe eliminar.
-
-## Recursos creados por este proyecto
-
-El archivo `main.tf` crea principalmente:
-
-- VPC `VPC_curter`.
-- Subnet publica `Subnet-Publica`.
-- Subnet privada `Subnet-Privada`.
-- Internet Gateway.
-- Elastic IP para NAT Gateway.
-- NAT Gateway.
-- Tabla de rutas publica.
-- Tabla de rutas privada.
-- Security group para proxy.
-- Security group para Airflow.
-- Security group para workers de Airflow.
-- Security group para RabbitMQ.
-- Instancia EC2 proxy `t3.micro`.
-- Instancia EC2 RabbitMQ `t3.small`.
-- Instancia EC2 Airflow master `t3.small`.
-- Tres instancias EC2 Airflow workers `t3.small`.
-- Bucket S3 para logs y datos de Airflow.
-- Usuario IAM para escritura de logs.
-- Rol IAM e instance profile para los workers.
-
-## Notas importantes
-
-- El NAT Gateway genera costo mientras exista.
-- Las instancias EC2 generan costo mientras estén encendidas.
-- Los volúmenes EBS también pueden generar costo.
-- Si el `apply` falla a mitad de camino, revisá el estado con `terraform plan`.
-- Si un recurso queda marcado como `tainted`, Terraform puede proponer destruirlo y crearlo de nuevo.
-- Los security groups del proxy abren puertos como SSH, HTTP y HTTPS hacia internet; para producción conviene limitar SSH a tu IP pública. Ahora podés controlar esto con la variable `allowed_ssh_cidr`.
-- El CIDR de la VPC ahora usa `10.0.0.0/16`, que es el rango privado recomendado por AWS.
-- No borrés `terraform.tfstate` antes de hacer `destroy`. Ese archivo le dice a Terraform qué recursos creó y que debe eliminar.
-
-## Comandos utiles
-
-Ver identidad AWS configurada:
-
-```powershell
-aws sts get-caller-identity
-```
-
-Ver key pairs disponibles:
-
-```powershell
-aws ec2 describe-key-pairs --query "KeyPairs[*].KeyName" --output table
-```
-
-Ver estado de Terraform:
-
-```powershell
-terraform show
-```
-
-Ver recursos manejados por Terraform:
-
-```powershell
-terraform state list
-```
-
-Validar formato de archivos Terraform:
-
-```powershell
-terraform fmt
-```
-
-Validar configuracion:
-
-```powershell
-terraform validate
-```
-
-Crear recursos:
-
-```powershell
-terraform apply
-```
-
-Eliminar recursos:
-
-```powershell
-terraform destroy
-```
-
-
+Private repository. All rights reserved.

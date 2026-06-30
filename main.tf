@@ -44,20 +44,19 @@ module "security_groups" {
 
 module "compute" {
   source = "./modules/compute"
-
-  ami                     = data.aws_ami.amazon_linux_2.id
-  subnet_publica_id       = module.networking.subnet_publica_id
-  subnet_privada_id       = module.networking.subnet_privada_id
-  sg_proxy_id             = module.security_groups.sg_proxy_id
-  sg_ia_id                = module.security_groups.sg_ia_id
-  sg_front_id             = module.security_groups.sg_front_id
-  sg_back_id              = module.security_groups.sg_back_id
-  sg_db_id                = module.security_groups.sg_db_id
-  key_proxy               = var.KEY_PROXY
-  key_general             = var.KEY_GENERAL
-  environment             = var.environment
-  owner                   = var.owner
-  proxy_eip_allocation_id = var.proxy_eip_allocation_id
+  proxy_eip_allocation_id = "eipalloc-0e19fa47bcb2ae1e6"
+  ami                  = "ami-0b6d9d3d33ba97d99"
+  subnet_publica_id    = module.networking.subnet_publica_id
+  subnet_privada_id    = module.networking.subnet_privada_id
+  sg_proxy_id          = module.security_groups.sg_proxy_id
+  sg_ia_id             = module.security_groups.sg_ia_id
+  sg_front_id          = module.security_groups.sg_front_id
+  sg_back_id           = module.security_groups.sg_back_id
+  sg_db_id             = module.security_groups.sg_db_id
+  key_proxy            = var.KEY_PROXY
+  key_general          = var.KEY_GENERAL
+  environment          = var.environment
+  owner                = var.owner
 }
 
 # Módulo iam_s3 comentado temporalmente (sin uso por el momento)

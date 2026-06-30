@@ -58,8 +58,8 @@ resource "aws_security_group" "sg_ia" {
 
   ingress {
     description     = "HTTP Airflow UI"
-    from_port       = 8080
-    to_port         = 8080
+    from_port       = 8000
+    to_port         = 8000
     protocol        = "tcp"
     security_groups = [aws_security_group.sg_proxy.id]
   }
@@ -98,9 +98,9 @@ resource "aws_security_group" "sg_front" {
     security_groups = [aws_security_group.sg_proxy.id]
   }
   ingress {
-    description     = "Flower UI"
-    from_port       = 5555
-    to_port         = 5555
+    description     = "SG for front"
+    from_port       = 8080
+    to_port         = 8080
     protocol        = "tcp"
     security_groups = [aws_security_group.sg_proxy.id]
   }
@@ -132,11 +132,18 @@ resource "aws_security_group" "sg_back" {
     security_groups = [aws_security_group.sg_proxy.id]
   }
   ingress {
-    description     = "AMQP - solo desde Airflow"
-    from_port       = 5672
-    to_port         = 5672
+    description     = "for the apk"
+    from_port       = 5000
+    to_port         = 5000
     protocol        = "tcp"
-    security_groups = [aws_security_group.sg_ia.id]
+    security_groups = [aws_security_group.sg_proxy.id]
+  }
+  ingress {
+    description     = "for the web"
+    from_port       = 5000
+    to_port         = 5000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.sg_front.id]
   }
 
 
@@ -165,17 +172,25 @@ resource "aws_security_group" "sg_db" {
 
   ingress {
     description     = "SSH desde proxy"
-    from_port       = 22
+    from_port       = 22  
     to_port         = 22
     protocol        = "tcp"
     security_groups = [aws_security_group.sg_proxy.id]
   }
   ingress {
-    description     = "Puerto DB desde back"
+    description     = "port for sg_back"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.sg_back.id]
+  }
+
+  ingress {
+    description     = "port for sg_back"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.sg_ia.id]
   }
 
   egress {
